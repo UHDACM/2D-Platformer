@@ -1,12 +1,9 @@
-using UnityEngine;
-
 public class Enums
 {
 
     public enum Maps
     {
         Default,
-
         Undersea,
         Ice,
         Lava, 
