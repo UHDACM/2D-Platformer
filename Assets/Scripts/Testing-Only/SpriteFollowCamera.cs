@@ -1,8 +1,12 @@
 using System;
 using UnityEngine;
 
-public class SpriteFollowCamera : MonoBehaviour
+public class SpriteFollowCamera : MonoBehaviourPlus
 {
+    
+    public override string prettyName => "SpriteFollowCamera";
+    public override string description => "you can ignore this, just to test some stuff..";
+    
     public GameObject sprite;
 
     public Enums.Maps map;
@@ -14,4 +18,5 @@ public class SpriteFollowCamera : MonoBehaviour
         
         transform.position = pos;
     }
+    
 }
