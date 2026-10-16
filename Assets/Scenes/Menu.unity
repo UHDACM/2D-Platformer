@@ -371,7 +371,7 @@ GameObject:
   - component: {fileID: 760751548}
   - component: {fileID: 760751547}
   m_Layer: 0
-  m_Name: Scene Manager
+  m_Name: Scene Router
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -389,6 +389,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 28d06e7d6bfbc1d49811528d744e842d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 2DPlatformer.Utility::SceneManager
+  menu_scene: Assets/Scenes/Menu.unity
+  map_scene: Assets/Scenes/Map.unity
+  loading_scene: Assets/Scenes/Loading.unity
+  undersea_scene: Assets/Scenes/Maps/Undersea.unity
+  ice_scene: Assets/Scenes/Maps/Ice.unity
+  lava_scene: Assets/Scenes/Maps/Lava.unity
+  space_scene: Assets/Scenes/Maps/Space.unity
+  grass_scene: Assets/Scenes/Maps/Grass.unity
 --- !u!4 &760751548
 Transform:
   m_ObjectHideFlags: 0

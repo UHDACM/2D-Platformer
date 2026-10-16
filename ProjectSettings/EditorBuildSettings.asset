@@ -8,5 +8,26 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Menu.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/Scenes/Map.unity
+    guid: 527307bc4be0c554bb9b033f60282dbd
+  - enabled: 1
+    path: Assets/Scenes/Loading.unity
+    guid: 85d25d574ece4a746b0fe3cc4d85a2c5
+  - enabled: 1
+    path: Assets/Scenes/Maps/Grass.unity
+    guid: afaecafecc62fcd49a2516e6636a6ec5
+  - enabled: 1
+    path: Assets/Scenes/Maps/Ice.unity
+    guid: 41b2b786865d66e4d9a30a264da1fc61
+  - enabled: 1
+    path: Assets/Scenes/Maps/Lava.unity
+    guid: 3bdf3ea416074c7408ce03c182a7534f
+  - enabled: 1
+    path: Assets/Scenes/Maps/Space.unity
+    guid: ade4bcff342f9644690fd8cf141f7983
+  - enabled: 1
+    path: Assets/Scenes/Maps/Undersea.unity
+    guid: 1272947b68869f242b7577f12acb883c
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
