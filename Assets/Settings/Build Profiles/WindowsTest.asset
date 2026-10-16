@@ -20,7 +20,7 @@ MonoBehaviour:
     rid: 1104427684808884481
   m_ActivePlatformGuid: 
   m_AdditionalPlatformBuildSettings: []
-  m_OverrideGlobalSceneList: 1
+  m_OverrideGlobalSceneList: 0
   m_Scenes:
   - m_enabled: 1
     m_path: Assets/Scenes/Testing-Only/TestScene.unity
