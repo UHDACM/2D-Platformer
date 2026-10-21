@@ -22,15 +22,21 @@ public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbac
 
     void INetworkRunnerCallbacks.OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
-        // Testing only
-        // Create a unique position for the player
-        Vector3 spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 1, 0);
-        NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
+        if (runner.IsServer)
+        { 
+            // Testing only
+            // Create a unique position for the player
+            Vector3 spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 1, 0);
+            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
         
-        // Keep track of the player avatars for easy access
-        _spawnedCharacters.Add(player, networkPlayerObject);
+            // Keep track of the player avatars for easy access
+            _spawnedCharacters.Add(player, networkPlayerObject);
         
-        Debug.Log("[Photon Multiplayer] Player Joined!");
+            Debug.Log("[Photon Multiplayer] Player Join you (Host)!");   
+        }
+        else
+            Debug.Log("[Photon Multiplayer] Your Client has joined!");   
+
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
@@ -44,6 +50,14 @@ public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbac
         Debug.Log("[Photon Multiplayer] Player Left!");
     }
 
+    // sample mouse click
+    private bool _mouseButton0;
+    private void Update()
+    {
+        // capture via new input system
+        _mouseButton0 = _mouseButton0 | Mouse.current.leftButton.wasPressedThisFrame;
+    }
+
 
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
@@ -52,17 +66,22 @@ public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbac
         // Read Keyboard
         // Change later to other script
         if (Keyboard.current.aKey.isPressed)
-            data.Direction += Vector3.left;
+            data.Direction += Vector2.left;
         if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector3.right;
+            data.Direction += Vector2.right;
         if (Keyboard.current.wKey.isPressed)
-            data.Direction += Vector3.up;
+            data.Direction += Vector2.up;
         if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector3.down;
+            data.Direction += Vector2.down;
 
+        // read sampled mouse click
+        data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
+        _mouseButton0 = false;
+        
         // give input to the host
         input.Set(data);
     }
+    
     
     
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
