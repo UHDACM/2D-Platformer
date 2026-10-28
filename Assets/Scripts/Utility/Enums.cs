@@ -9,7 +9,18 @@ public class Enums
         Lava, 
         Space, 
         Grass,
-
+    }
+    
+    public enum Scenes
+    {
+        Loading,
+        Menu,
+        Map,
+        Grass,
+        Ice,
+        Lava,
+        Space,
+        Undersea
     }
 
     public enum Placeables
@@ -48,7 +59,6 @@ public class Enums
 
         Host,
         Joinee,
-
 
     }
 
