@@ -1379,7 +1379,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 161d6a3d986c3f94097c585f528d5365, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NetworkSceneListener
-  globalGameSettings: {fileID: 0}
 --- !u!4 &566179252
 Transform:
   m_ObjectHideFlags: 0
@@ -1428,7 +1427,6 @@ MonoBehaviour:
     RawGuidValue: 90672cd21231fae47a27f94f16436cd9l
   _GlobalGameSettings_Prefab:
     RawGuidValue: f2223c999258fd4408c215c85b7cdb0al
-  _NetworkSceneListener: {fileID: 566179251}
   _MenuSceneRPCController_Prefab:
     RawGuidValue: ae55ded8e16925542888fefb27d58442l
   _MapSceneRPCController_Prefab:

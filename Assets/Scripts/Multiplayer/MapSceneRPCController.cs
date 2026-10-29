@@ -12,22 +12,23 @@ public class MapSceneRPCController : NetworkBehaviour
         
     private void Update()
     {
-        // only client
-        if (Object.HasInputAuthority &&
-            Keyboard.current.digit1Key.wasPressedThisFrame)
-            RPC_toHost("Hello this is coming from  a client!");
-        
-        // Only host
+        // Host -> all clients
         if (Object.HasStateAuthority &&
             Keyboard.current.digit2Key.wasPressedThisFrame)
             RPC_toClient("Hello this is coming from your host!");
-        
-        // only client
+
+        /*
+        // Client -> Host
+        if (Object.HasInputAuthority &&
+            Keyboard.current.digit1Key.wasPressedThisFrame)
+            RPC_toHost("Hello this is coming from  a client!");
+
+
+        //  Client -> all clients
         if (Object.HasInputAuthority &&
             Keyboard.current.digit3Key.wasPressedThisFrame)
             RPC_SendMessage("Hello this is coming from  a client!");
-
-        
+        */
     }
 
 

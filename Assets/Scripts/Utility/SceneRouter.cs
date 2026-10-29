@@ -12,8 +12,11 @@ public class SceneRouter : MonoBehaviourPlus
     ////////////////////////////////
     //
     ////////////////////////////////
+    /// 
+    public Action RPC_OnStartMenuScene;
+    public Action RPC_OnStartMapScene;
+    public Action RPC_OnStartGameScene;
     
-    // Unity Events
     public event Action OnStartMenuScene;
     public event Action OnStartMapScene;
     public event Action OnStartGameScene;
@@ -47,14 +50,16 @@ public class SceneRouter : MonoBehaviourPlus
     // Once the Game starts
     private void Awake()
     {
-        // this script will never unload
-        if (Instance == null)
+        // Delete duplicates
+        if (Instance != null && Instance != this)
         {
-            DontDestroyOnLoad(this.gameObject);
-            Instance = this;
+            Destroy(gameObject);
+            return;
         }
-        else
-            Debug.Log(" Uh oh. Something went really wrong for this to not be null on awake()");
+        
+        Instance = this;
+        DontDestroyOnLoad(this.gameObject);
+
     }
 
     /* Only to test the Scene Router
@@ -98,6 +103,7 @@ public class SceneRouter : MonoBehaviourPlus
         
         SceneManager.UnloadSceneAsync(loading_scene);
         OnStartMapScene?.Invoke();
+        RPC_OnStartMapScene?.Invoke();
     }
     
     ////////////////////////////////
@@ -122,6 +128,7 @@ public class SceneRouter : MonoBehaviourPlus
         
         SceneManager.UnloadSceneAsync(loading_scene);
         OnStartMenuScene?.Invoke();
+        RPC_OnStartMenuScene?.Invoke();
     }
     
     
@@ -169,6 +176,7 @@ public class SceneRouter : MonoBehaviourPlus
         
         SceneManager.UnloadSceneAsync(loading_scene);
         OnStartGameScene?.Invoke();
+        RPC_OnStartGameScene?.Invoke();        
     }
 
     ////////////////////////////////
@@ -193,6 +201,7 @@ public class SceneRouter : MonoBehaviourPlus
         
         SceneManager.UnloadSceneAsync(loading_scene);
         OnStartMapScene?.Invoke();
+        RPC_OnStartMapScene?.Invoke();
     }
     
 }

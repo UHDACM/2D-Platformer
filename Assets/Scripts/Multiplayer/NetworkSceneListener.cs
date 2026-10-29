@@ -6,24 +6,36 @@ public class NetworkSceneListener : MonoBehaviourPlus
 {
     public override string prettyName => "NetworkSceneListener";
     public override string description => "Listens for Scene index changes\n Talks to the SceneRouter directly";
+
+    public static NetworkSceneListener Instance;    
     
-    [Header("Assigned at run time")]
-    [SerializeField]
-    public GlobalGameSettings globalGameSettings;      // were tracking the host's game settings
+    // Create singelton
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
     
     private void Update()
     {
-        if (globalGameSettings == null) return;
+        GlobalGameSettings gs = GlobalGameSettings.Instance;    
+        if (gs == null) return;
+        
         
         // assigned by Network Simulation Manager
-        
-        foreach (string change in globalGameSettings.changeDetector.DetectChanges(globalGameSettings))
+        foreach (string change in gs.changeDetector.DetectChanges(gs))
         {
-            switch ( change)
+            switch (change)
             {
-                case nameof(globalGameSettings.sceneIndex):
-                    Debug.Log($"scene index changed to: {globalGameSettings.sceneIndex}");
-                    SceneChanged(globalGameSettings.sceneIndex);
+                case nameof(gs.sceneIndex):
+                    Debug.Log($"scene index changed to: {gs.sceneIndex}");
+                    SceneChanged(gs.sceneIndex);
                     break;
             }
         }

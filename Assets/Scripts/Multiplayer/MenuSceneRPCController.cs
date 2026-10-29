@@ -13,22 +13,26 @@ public class MenuSceneRPCController : NetworkBehaviour
     
     private void Update()
     {
-        // only client
+
+        
+        // Host -> all clients
+        if (Object.HasStateAuthority &&
+            Keyboard.current.digit2Key.wasPressedThisFrame)
+            RPC_toClient("Hello this is coming from your host!");
+
+        /*
+        // Client -> Host
         if (Object.HasInputAuthority &&
             Keyboard.current.digit1Key.wasPressedThisFrame)
             RPC_toHost("Hello this is coming from  a client!");
         
-        // Only host
-        if (Object.HasStateAuthority &&
-            Keyboard.current.digit2Key.wasPressedThisFrame)
-            RPC_toClient("Hello this is coming from your host!");
-        
-        // only client
+
+        //  Client -> all clients
         if (Object.HasInputAuthority &&
             Keyboard.current.digit3Key.wasPressedThisFrame)
             RPC_SendMessage("Hello this is coming from  a client!");
+        */
 
-        
     }
 
 
@@ -45,8 +49,8 @@ public class MenuSceneRPCController : NetworkBehaviour
         Debug.Log($"message recieved from host!");
     }
 
-    
-    
+
+
     // Message relay, client -> via host -> all clients
     [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority, HostMode = RpcHostMode.SourceIsHostPlayer)]
     public void RPC_SendMessage(string message, RpcInfo info = default)
