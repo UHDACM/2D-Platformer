@@ -23,8 +23,29 @@ MonoBehaviour:
   m_OverrideGlobalSceneList: 1
   m_Scenes:
   - m_enabled: 1
-    m_path: Assets/Scenes/Testing-Only/MultiplayerTest.unity
-    m_guid: 912bc0a673034e64b8a1f0caacb952ec
+    m_path: Assets/Menu.unity
+    m_guid: ea7b09dab2eb04c69ae9dbef93080141
+  - m_enabled: 1
+    m_path: Assets/Scenes/Map.unity
+    m_guid: 527307bc4be0c554bb9b033f60282dbd
+  - m_enabled: 1
+    m_path: Assets/Scenes/Loading.unity
+    m_guid: 85d25d574ece4a746b0fe3cc4d85a2c5
+  - m_enabled: 1
+    m_path: Assets/Scenes/Maps/Grass.unity
+    m_guid: afaecafecc62fcd49a2516e6636a6ec5
+  - m_enabled: 1
+    m_path: Assets/Scenes/Maps/Ice.unity
+    m_guid: 41b2b786865d66e4d9a30a264da1fc61
+  - m_enabled: 1
+    m_path: Assets/Scenes/Maps/Lava.unity
+    m_guid: 3bdf3ea416074c7408ce03c182a7534f
+  - m_enabled: 1
+    m_path: Assets/Scenes/Maps/Space.unity
+    m_guid: ade4bcff342f9644690fd8cf141f7983
+  - m_enabled: 1
+    m_path: Assets/Scenes/Maps/Undersea.unity
+    m_guid: 1272947b68869f242b7577f12acb883c
   m_HasScriptingDefines: 0
   m_ScriptingDefines: []
   m_PlayerSettingsYaml:

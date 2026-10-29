@@ -2,40 +2,111 @@ using System;
 using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
+using Object = System.Object;
 
-public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbacks
+public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCallbacks
 {
-    public override string prettyName => "MultiplayerPlayerSpawner";
+    public override string prettyName => "MultiplayerSimulationManager";
     public override string description => "Runs the Network Simulation of the game";
-
     
-    // Player Prefab to spawn in    
-    [SerializeField] private NetworkPrefabRef _playerPrefab;
+    
+    [Header("Persistent Networking")]
+    [SerializeField] private NetworkPrefabRef _LocalPlayerProfile_Prefab;
+    [SerializeField] private NetworkPrefabRef _GlobalGameSettings_Prefab;
+
+    [Header("Remote Procedure Calls (RPC)")]
+    [SerializeField] private NetworkPrefabRef _MenuSceneRPCController_Prefab;
+    [SerializeField] private NetworkPrefabRef _MapSceneRPCController_Prefab;
+    [SerializeField] private NetworkPrefabRef _GameSceneRPCController_Prefab;
+
     
     // Hashmap of all players
     [ReadOnly]
     [SerializeField] Dictionary<PlayerRef, NetworkObject> 
         _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
+    
+    private NetworkRunner _hostRunner;
+    private NetworkObject _globalGameSettings;
 
+    
+    public static MultiplayerSimulationManager Instance { get; private set; }
+    
+    // Create singelton
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+    
+    async void StartGame(GameMode mode)
+    {
+        
+        // Create the Fusion runner and let it know that we will be providing user input
+        _hostRunner = gameObject.AddComponent<NetworkRunner>();
+        _hostRunner.ProvideInput = true;
+
+        // Create the NetworkSceneInfo from the current scene
+        //var scene = SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex);
+        //var sceneInfo = new NetworkSceneInfo();
+        //if (scene.IsValid)
+        //{
+        //    sceneInfo.AddSceneRef(scene, LoadSceneMode.Additive);
+        //}
+
+        // Start or join (depends on gamemode) a session with a specific name
+        await _hostRunner.StartGame(new StartGameArgs()
+        {
+            GameMode = mode,
+            SessionName = "TestRoom",
+            SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
+        });
+        
+    }
+
+    // temporary testing functions
+    public void HostGame() => StartGame(GameMode.Host);
+    public void JoinGame() => StartGame(GameMode.Client);
+    
     void INetworkRunnerCallbacks.OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
         if (runner.IsServer)
-        { 
-            // Testing only
-            // Create a unique position for the player
-            Vector3 spawnPosition = new Vector3((player.RawEncoded % runner.Config.Simulation.PlayerCount) * 3, 1, 0);
-            NetworkObject networkPlayerObject = runner.Spawn(_playerPrefab, spawnPosition, Quaternion.identity, player);
-        
+        {
+             
+            // Host owns the game settings for everyone
+            if (_globalGameSettings == null)
+            {
+                _globalGameSettings = _hostRunner.Spawn(_GlobalGameSettings_Prefab, Vector3.zero, Quaternion.identity);
+                DontDestroyOnLoad(_globalGameSettings.gameObject);                
+                
+                // RPC
+                 _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+            }
+
+            
+            NetworkObject networkPlayerObject = runner.Spawn(_LocalPlayerProfile_Prefab, Vector3.zero, Quaternion.identity, player);
+            DontDestroyOnLoad(networkPlayerObject.gameObject); // only destroy on despawn
+            
             // Keep track of the player avatars for easy access
             _spawnedCharacters.Add(player, networkPlayerObject);
-        
-            Debug.Log("[Photon Multiplayer] Player Join you (Host)!");   
+            
+            // Idempotent, but oh well
+            SceneRouter.Instance.RPC_OnStartMenuScene = () => _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+            SceneRouter.Instance.RPC_OnStartMapScene = () => _hostRunner.Spawn(_MapSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity, player);
+
         }
         else
-            Debug.Log("[Photon Multiplayer] Your Client has joined!");   
+            Debug.Log("[Photon Multiplayer] Your Client has joined!");
 
     }
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
@@ -82,12 +153,16 @@ public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbac
         input.Set(data);
     }
     
-    
-    
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
-    void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
+
+    void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
+    {
+    }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
-    void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason) { }
+
+    void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
+    {
+    }
     void INetworkRunnerCallbacks.OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
     void INetworkRunnerCallbacks.OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
     void INetworkRunnerCallbacks.OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
@@ -101,48 +176,4 @@ public class MultiplayerPlayerSpawner : MonoBehaviourPlus, INetworkRunnerCallbac
     void INetworkRunnerCallbacks.OnReliableDataReceived(NetworkRunner runner, PlayerRef player, ReliableKey key, ReadOnlySpan<byte> data) { }
     void INetworkRunnerCallbacks.OnReliableDataProgress(NetworkRunner runner, PlayerRef player, ReliableKey key, float progress) { }
     
-    
-    private NetworkRunner _runner;
-
-    async void StartGame(GameMode mode)
-    {
-        // Create the Fusion runner and let it know that we will be providing user input
-        _runner = gameObject.AddComponent<NetworkRunner>();
-        _runner.ProvideInput = true;
-
-        // Create the NetworkSceneInfo from the current scene
-        var scene = SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex);
-        var sceneInfo = new NetworkSceneInfo();
-        if (scene.IsValid)
-        {
-            sceneInfo.AddSceneRef(scene, LoadSceneMode.Additive);
-        }
-
-        // Start or join (depends on gamemode) a session with a specific name
-        await _runner.StartGame(new StartGameArgs()
-        {
-            GameMode = mode,
-            SessionName = "TestRoom",
-            Scene = scene,
-            SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
-        });
-    }
-    
-    
-    // delete later
-    private void OnGUI()
-    {
-        if (_runner == null)
-        {
-            if (GUI.Button(new Rect(0, 0, 200, 40), "Host"))
-            {
-                StartGame(GameMode.Host);
-            }
-
-            if (GUI.Button(new Rect(0, 40, 200, 40), "Join"))
-            {
-                StartGame(GameMode.Client);
-            }
-        }
-    }
 }
