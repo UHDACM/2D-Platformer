@@ -17,7 +17,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     [Header("Persistent Networking")]
     [SerializeField] private NetworkPrefabRef _LocalPlayerProfile_Prefab;
     [SerializeField] private NetworkPrefabRef _GlobalGameSettings_Prefab;
-    
+
     [Header("Remote Procedure Calls (RPC)")]
     [SerializeField] private NetworkPrefabRef _MenuSceneRPCController_Prefab;
     [SerializeField] private NetworkPrefabRef _MapSceneRPCController_Prefab;
@@ -102,7 +102,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
             // Idempotent, but oh well
             SceneRouter.Instance.RPC_OnStartMenuScene = () => _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
             SceneRouter.Instance.RPC_OnStartMapScene = () => _hostRunner.Spawn(_MapSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity, player);
 
         }
         else

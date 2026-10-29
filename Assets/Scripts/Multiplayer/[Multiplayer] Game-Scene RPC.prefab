@@ -45,6 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4c9d6fd28ca6f74daf3444c9622faf3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameSceneRPCController
+  _Player_Prefab:
+    RawGuidValue: 704ba27483777874b94b76d2d3cabc3cl
 --- !u!114 &6187292281339369145
 MonoBehaviour:
   m_ObjectHideFlags: 0

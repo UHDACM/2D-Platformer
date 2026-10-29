@@ -14,18 +14,21 @@ public class MenuSceneRPCController : NetworkBehaviour
     private void Update()
     {
 
-        
-        // Host -> all clients
         if (Object.HasStateAuthority &&
-            Keyboard.current.digit2Key.wasPressedThisFrame)
-            RPC_toClient("Hello this is coming from your host!");
+            Keyboard.current.digit1Key.wasPressedThisFrame)
+            GlobalGameSettings.Instance.sceneIndex = (int)Enums.Scenes.Map;
 
         /*
+        // Host -> all clients
+        if (Object.HasStateAuthority &&
+            Keyboard.current.digit1Key.wasPressedThisFrame)
+            RPC_toClient("Hello this is coming from your host!");
+
         // Client -> Host
         if (Object.HasInputAuthority &&
             Keyboard.current.digit1Key.wasPressedThisFrame)
             RPC_toHost("Hello this is coming from  a client!");
-        
+
 
         //  Client -> all clients
         if (Object.HasInputAuthority &&

@@ -12,12 +12,17 @@ public class MapSceneRPCController : NetworkBehaviour
         
     private void Update()
     {
+        
+        if (Object.HasStateAuthority &&
+            Keyboard.current.digit1Key.wasPressedThisFrame)
+            GlobalGameSettings.Instance.sceneIndex = (int)Enums.Scenes.Grass;
+
+        /*
         // Host -> all clients
         if (Object.HasStateAuthority &&
             Keyboard.current.digit2Key.wasPressedThisFrame)
             RPC_toClient("Hello this is coming from your host!");
 
-        /*
         // Client -> Host
         if (Object.HasInputAuthority &&
             Keyboard.current.digit1Key.wasPressedThisFrame)

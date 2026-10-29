@@ -5,21 +5,37 @@ using UnityEngine.InputSystem;
 
 public class GameSceneRPCController : NetworkBehaviour
 {
+    
+    
     //public override string prettyName => "Multiplayer RPC Controller";
 
     //public override string description =>
         //"Interprocess communication via Remote Procedure Calls\n lets you call another PC's c# functions";
 
-    
-    
+        
+    [SerializeField] private NetworkPrefabRef _Player_Prefab;
+
+    public override void Spawned()
+    { 
+        base.Spawned();
+        
+        Runner.Spawn(_Player_Prefab, Vector3.zero, Quaternion.identity, Object.InputAuthority);
+    }
+
+
     private void Update()
     {
+        
+        if (Object.HasStateAuthority &&
+            Keyboard.current.digit1Key.wasPressedThisFrame)
+            GlobalGameSettings.Instance.sceneIndex = (int)Enums.Scenes.Map;
+        
+        /*
         // Host -> all clients
         if (Object.HasStateAuthority &&
             Keyboard.current.digit2Key.wasPressedThisFrame)
             RPC_toClient("Hello this is coming from your host!");
 
-        /*
         // Client -> Host
         if (Object.HasInputAuthority &&
             Keyboard.current.digit1Key.wasPressedThisFrame)
