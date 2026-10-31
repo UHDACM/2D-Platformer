@@ -5,6 +5,7 @@ using UnityEngine;
 public class PlayerMovementMultiplayer : NetworkBehaviour
 {
     private Rigidbody2D rb;
+    private GroupFollowCamera2D followCamera;
     public GameObject circle_prefab;        // just for testing
 
     // Synced network variables
@@ -24,15 +25,20 @@ public class PlayerMovementMultiplayer : NetworkBehaviour
         rb = GetComponent<Rigidbody2D>();
     }
 
-    private void Update()
+    private void RegisterCameraTarget()
     {
-        if (!HasInputAuthority) return;
-        
-        // Jittery because the local synced-position != camera position
-        Vector3 v = transform.position;
-        v.z = -10f;
+        if (followCamera == null) followCamera = GroupFollowCamera2D.ForMainCamera();
+        if (followCamera != null) followCamera.Register(transform);
+    }
 
-        Camera.main.transform.position = v;
+    public override void Despawned(NetworkRunner runner, bool hasState)
+    {
+        if (followCamera != null) followCamera.Unregister(transform);
+    }
+
+    private void OnDisable()
+    {
+        if (followCamera != null) followCamera.Unregister(transform);
     }
 
     // Once this player is spawned in
@@ -49,6 +55,8 @@ public class PlayerMovementMultiplayer : NetworkBehaviour
     // After update() function, invoke any needed network changes
     public override void Render()
     {
+        // Every visible player joins the local group; input authority does not gate framing.
+        RegisterCameraTarget();
         foreach (string change in  changeDetector.DetectChanges(this))
         {
 

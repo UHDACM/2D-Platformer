@@ -38,12 +38,15 @@ namespace UltimateGrid2D
             sr.transform.localScale = new Vector3(size.x, size.y, 1);
         }
         public void Show(GridPlaceable2D item, Vector2Int anchor)
+            => Show(item, anchor, item == null ? 0 : item.QuarterTurns);
+
+        public void Show(GridPlaceable2D item, Vector2Int anchor, int quarterTurns)
         {
             HideHighlights();
             if (item == null || item.definition == null) return;
-            Color color = grid.CanPlace(item, anchor) ? validColor : invalidColor;
+            Color color = grid.CanPlace(item, anchor, quarterTurns) ? validColor : invalidColor;
             int i = 0;
-            foreach (var offset in item.definition.Cells())
+            foreach (var offset in item.definition.Cells(quarterTurns))
             {
                 if (i == highlights.Count) highlights.Add(MakeSprite("Cell highlight", transform));
                 var sr = highlights[i++]; sr.gameObject.SetActive(true); sr.color = color;
