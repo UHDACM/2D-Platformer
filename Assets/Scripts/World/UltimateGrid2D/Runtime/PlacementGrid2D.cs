@@ -19,9 +19,12 @@ namespace UltimateGrid2D
             return new Vector2Int(Mathf.FloorToInt(p.x - pivot.x + .5f), Mathf.FloorToInt(p.y - pivot.y + .5f));
         }
         public bool CanPlace(GridPlaceable2D item, Vector2Int anchor)
+            => CanPlace(item, anchor, item == null ? 0 : item.QuarterTurns);
+
+        public bool CanPlace(GridPlaceable2D item, Vector2Int anchor, int quarterTurns)
         {
             if (item == null || item.definition == null) return false;
-            foreach (var offset in item.definition.Cells())
+            foreach (var offset in item.definition.Cells(quarterTurns))
             {
                 var c = anchor + offset;
                 if (!item.definition.ignoreBoundaries && (c.x < 0 || c.y < 0 || c.x >= dimensions.x || c.y >= dimensions.y)) return false;
@@ -30,12 +33,16 @@ namespace UltimateGrid2D
             return true;
         }
         public bool TryPlace(GridPlaceable2D item, Vector2Int anchor)
+            => TryPlace(item, anchor, item == null ? 0 : item.QuarterTurns);
+
+        public bool TryPlace(GridPlaceable2D item, Vector2Int anchor, int quarterTurns)
         {
-            if (!CanPlace(item, anchor)) return false;
+            if (!CanPlace(item, anchor, quarterTurns)) return false;
             Remove(item);
-            foreach (var offset in item.definition.Cells()) occupied[anchor + offset] = item;
+            foreach (var offset in item.definition.Cells(quarterTurns)) occupied[anchor + offset] = item;
             item.Anchor = anchor;
-            item.transform.position = PivotPosition(anchor, item.definition.pivot);
+            item.QuarterTurns = quarterTurns;
+            item.ApplyPose(anchor, quarterTurns);
             return true;
         }
         public void Remove(GridPlaceable2D item)
