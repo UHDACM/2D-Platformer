@@ -8,6 +8,9 @@ public class GlobalGameSettings : NetworkBehaviour
     
     public ChangeDetector changeDetector;
     
+    
+    
+    
     // Singelton
     public static GlobalGameSettings Instance { get; private set; }
     

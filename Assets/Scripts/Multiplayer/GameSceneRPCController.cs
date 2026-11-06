@@ -11,17 +11,7 @@ public class GameSceneRPCController : NetworkBehaviour
 
     //public override string description =>
         //"Interprocess communication via Remote Procedure Calls\n lets you call another PC's c# functions";
-
         
-    [SerializeField] private NetworkPrefabRef _Player_Prefab;
-
-    public override void Spawned()
-    { 
-        base.Spawned();
-        
-        Runner.Spawn(_Player_Prefab, Vector3.zero, Quaternion.identity, Object.InputAuthority);
-    }
-
 
     private void Update()
     {

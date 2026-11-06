@@ -22,15 +22,18 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     [SerializeField] private NetworkPrefabRef _MenuSceneRPCController_Prefab;
     [SerializeField] private NetworkPrefabRef _MapSceneRPCController_Prefab;
     [SerializeField] private NetworkPrefabRef _GameSceneRPCController_Prefab;
+    [SerializeField] private NetworkPrefabRef _GameManager_Prefab;
 
     
-    // Hashmap of all players
-    [ReadOnly]
-    [SerializeField] Dictionary<PlayerRef, NetworkObject> 
-        _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
+    // Stores all players
+    [SerializeField] private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new();
+    
+    // readOnly version of this dictionary (for outside scripts to use)
+    public IReadOnlyDictionary<PlayerRef, NetworkObject> spawnedCharacters => _spawnedCharacters;
     
     private NetworkRunner _hostRunner;
     private NetworkObject _globalGameSettings;
+    private NetworkObject _GameManager; // only one instance allowed in host game
 
     
     public static MultiplayerSimulationManager Instance { get; private set; }
@@ -102,13 +105,25 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
             // Idempotent, but oh well
             SceneRouter.Instance.RPC_OnStartMenuScene = () => _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
             SceneRouter.Instance.RPC_OnStartMapScene = () => _hostRunner.Spawn(_MapSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity, player);
+            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+
+            // handle game manager
+            SceneRouter.Instance.OnStartGameScene += () =>
+            {
+                if (_GameManager == null) 
+                    _GameManager = _hostRunner.Spawn(_GameManager_Prefab, Vector3.zero, Quaternion.identity);
+            };
+
+            SceneRouter.Instance.OnExitGameScene += () =>
+            {
+                _GameManager = null;        // dont blow your foot off
+            };
 
         }
         else
             Debug.Log("[Photon Multiplayer] Your Client has joined!");
-
     }
+    
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
         // Remove player from lists & destroy object
@@ -121,33 +136,37 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         Debug.Log("[Photon Multiplayer] Player Left!");
     }
 
-    // sample mouse click
+    /* sample mouse click
     private bool _mouseButton0;
     private void Update()
     {
         // capture via new input system
         _mouseButton0 = _mouseButton0 | Mouse.current.leftButton.wasPressedThisFrame;
-    }
+    }*/
 
 
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
         NetworkInputData data = new  NetworkInputData();
-        
+
         // Read Keyboard
         // Change later to other script
         if (Keyboard.current.aKey.isPressed)
-            data.Direction += Vector2.left;
+            data.moveDirection += Vector2.left;
         if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector2.right;
+            data.moveDirection += Vector2.right;
+        if (Keyboard.current.spaceKey.isPressed)
+            data.moveDirection += Vector2.up;
+
         if (Keyboard.current.wKey.isPressed)
-            data.Direction += Vector2.up;
-        if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector2.down;
+            data.climbDirection += Vector2.up;
+        if (Keyboard.current.sKey.isPressed)
+            data.climbDirection += Vector2.down;
+
 
         // read sampled mouse click
-        data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
-        _mouseButton0 = false;
+        //data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
+        //_mouseButton0 = false;
         
         // give input to the host
         input.Set(data);
