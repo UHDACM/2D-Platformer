@@ -13,6 +13,9 @@ public class SceneRouter : MonoBehaviourPlus
     //
     ////////////////////////////////
     /// 
+    public bool IsLoading { get; private set; }
+    public bool GameSceneReady { get; private set; }
+
     public Action RPC_OnStartMenuScene;
     public Action RPC_OnStartMapScene;
     public Action RPC_OnStartGameScene;
@@ -87,9 +90,12 @@ public class SceneRouter : MonoBehaviourPlus
     // Coroutines
     private IEnumerator HostStartsLoad()
     {
+        if (IsLoading) yield break;
+        IsLoading = true;
+        GameSceneReady = false;
         OnExitMenuScene?.Invoke();
 
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
+        yield return SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
         AsyncOperation asyncLoad = 
             SceneManager.LoadSceneAsync(map_scene, LoadSceneMode.Additive);
 
@@ -101,7 +107,9 @@ public class SceneRouter : MonoBehaviourPlus
             yield return null;
         }
         
-        SceneManager.UnloadSceneAsync(loading_scene);
+        SceneManager.SetActiveScene(SceneManager.GetSceneByName(map_scene));
+        yield return SceneManager.UnloadSceneAsync(loading_scene);
+        IsLoading = false;
         OnStartMapScene?.Invoke();
         RPC_OnStartMapScene?.Invoke();
     }
@@ -112,9 +120,12 @@ public class SceneRouter : MonoBehaviourPlus
     
     private IEnumerator QuitMapSceneLoad()
     {
+        if (IsLoading) yield break;
+        IsLoading = true;
+        GameSceneReady = false;
         OnExitMapScene?.Invoke();
 
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
+        yield return SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
         AsyncOperation asyncLoad = 
             SceneManager.LoadSceneAsync(menu_scene, LoadSceneMode.Additive);
 
@@ -126,7 +137,9 @@ public class SceneRouter : MonoBehaviourPlus
             yield return null;
         }
         
-        SceneManager.UnloadSceneAsync(loading_scene);
+        SceneManager.SetActiveScene(SceneManager.GetSceneByName(menu_scene));
+        yield return SceneManager.UnloadSceneAsync(loading_scene);
+        IsLoading = false;
         OnStartMenuScene?.Invoke();
         RPC_OnStartMenuScene?.Invoke();
     }
@@ -138,9 +151,12 @@ public class SceneRouter : MonoBehaviourPlus
 
     private IEnumerator MapChosenLoad(Enums.Maps mapChosen)
     {
+        if (IsLoading) yield break;
+        IsLoading = true;
+        GameSceneReady = false;
         OnExitMapScene?.Invoke();
 
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
+        yield return SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
         AsyncOperation asyncLoad = new AsyncOperation();
         
         // Multiplex between possible maps
@@ -174,7 +190,10 @@ public class SceneRouter : MonoBehaviourPlus
             yield return null;
         }
         
-        SceneManager.UnloadSceneAsync(loading_scene);
+        SceneManager.SetActiveScene(SceneManager.GetSceneAt(SceneManager.sceneCount - 1));
+        yield return SceneManager.UnloadSceneAsync(loading_scene);
+        IsLoading = false;
+        GameSceneReady = true;
         OnStartGameScene?.Invoke();
         RPC_OnStartGameScene?.Invoke();        
     }
@@ -185,9 +204,12 @@ public class SceneRouter : MonoBehaviourPlus
     
     private IEnumerator GameEndsLoad()
     {
+        if (IsLoading) yield break;
+        IsLoading = true;
+        GameSceneReady = false;
         OnExitGameScene?.Invoke();
 
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
+        yield return SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
         AsyncOperation asyncLoad = 
             SceneManager.LoadSceneAsync(map_scene, LoadSceneMode.Additive);
 
@@ -199,7 +221,9 @@ public class SceneRouter : MonoBehaviourPlus
             yield return null;
         }
         
-        SceneManager.UnloadSceneAsync(loading_scene);
+        SceneManager.SetActiveScene(SceneManager.GetSceneByName(map_scene));
+        yield return SceneManager.UnloadSceneAsync(loading_scene);
+        IsLoading = false;
         OnStartMapScene?.Invoke();
         RPC_OnStartMapScene?.Invoke();
     }

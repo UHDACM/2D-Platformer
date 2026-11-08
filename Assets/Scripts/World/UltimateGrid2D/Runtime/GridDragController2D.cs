@@ -14,6 +14,9 @@ namespace UltimateGrid2D
         public LayerMask pickLayers = ~0;
         [SerializeField] bool buildMode = true;
         public bool BuildMode => buildMode;
+        // Optional round-manager hooks; standalone/local demo behavior is unchanged when unset.
+        public System.Func<GridPlaceable2D, bool> CanDrag;
+        public System.Func<GridPlaceable2D, Vector2Int, int, bool> PlacementRequest;
         GridPlaceable2D dragging;
         Vector3 originalPosition, grabOffset;
         Quaternion originalRotation;
@@ -90,7 +93,7 @@ namespace UltimateGrid2D
             {
                 var hovered = overUI ? null : Pick(world);
                 if (overlay != null) overlay.Show(hovered, hovered == null ? Vector2Int.zero : hovered.Anchor);
-                if (!pressed || hovered == null || !hovered.movable) return;
+                if (!pressed || hovered == null || !hovered.movable || (CanDrag != null && !CanDrag(hovered))) return;
                 dragging = hovered; originalPosition = dragging.transform.position; grabOffset = originalPosition - world;
                 originalRotation = dragging.transform.rotation;
                 candidateRotation = dragging.QuarterTurns;
@@ -107,7 +110,10 @@ namespace UltimateGrid2D
             if (overlay != null) overlay.Show(dragging, candidate, candidateRotation);
             if (released)
             {
-                if (overUI || !grid.TryPlace(dragging, candidate, candidateRotation)) RestorePose();
+                bool accepted = !overUI && (PlacementRequest != null
+                    ? PlacementRequest(dragging, candidate, candidateRotation)
+                    : grid.TryPlace(dragging, candidate, candidateRotation));
+                if (!accepted) RestorePose();
                 EndDrag();
             }
         }
@@ -115,6 +121,10 @@ namespace UltimateGrid2D
         {
             RestorePose();
             EndDrag();
+        }
+        public void CancelDragFor(GridPlaceable2D item)
+        {
+            if (dragging == item) CancelDrag();
         }
         void RestorePose()
         {
