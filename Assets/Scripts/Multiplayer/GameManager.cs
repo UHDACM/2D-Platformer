@@ -19,8 +19,9 @@ public class GameManager : NetworkBehaviour
     public override void Spawned()
     { 
         base.Spawned();
-        onGameStarted();
         Instance = this;
+        // Only the host creates characters and initializes the networked phase/timers.
+        if (HasStateAuthority) onGameStarted();
     }
 
     public override void Despawned(NetworkRunner runner, bool hasState)

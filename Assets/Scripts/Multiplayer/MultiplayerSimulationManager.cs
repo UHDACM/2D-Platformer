@@ -2,11 +2,8 @@ using System;
 using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
-using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using Object = System.Object;
 
 public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCallbacks
 {
@@ -136,42 +133,17 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         Debug.Log("[Photon Multiplayer] Player Left!");
     }
 
-    /* sample mouse click
-    private bool _mouseButton0;
-    private void Update()
-    {
-        // capture via new input system
-        _mouseButton0 = _mouseButton0 | Mouse.current.leftButton.wasPressedThisFrame;
-    }*/
+    private readonly PlatformerInputSampler playerInput = new PlatformerInputSampler();
 
+    private void Update() => playerInput.Capture(Keyboard.current);
+    private void OnApplicationFocus(bool focused) { if (!focused) playerInput.Clear(); }
 
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
-        NetworkInputData data = new  NetworkInputData();
-
-        // Read Keyboard
-        // Change later to other script
-        if (Keyboard.current.aKey.isPressed)
-            data.moveDirection += Vector2.left;
-        if (Keyboard.current.dKey.isPressed)
-            data.moveDirection += Vector2.right;
-        if (Keyboard.current.spaceKey.isPressed)
-            data.moveDirection += Vector2.up;
-
-        if (Keyboard.current.wKey.isPressed)
-            data.climbDirection += Vector2.up;
-        if (Keyboard.current.sKey.isPressed)
-            data.climbDirection += Vector2.down;
-
-
-        // read sampled mouse click
-        //data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
-        //_mouseButton0 = false;
-        
-        // give input to the host
-        input.Set(data);
+        playerInput.Read(Keyboard.current, out Vector2 moveDirection, out float climbDirection);
+        input.Set(new NetworkInputData { moveDirection = moveDirection, climbDirection = climbDirection });
     }
-    
+
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
 
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
