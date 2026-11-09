@@ -1,77 +1,54 @@
-using System;
 using Fusion;
 using UnityEngine;
 
+[RequireComponent(typeof(PlatformerMotor2D))]
 public class PlayerMovementMultiplayer : NetworkBehaviour
 {
-    private Rigidbody2D rb;
-    private GroupFollowCamera2D followCamera;
+    PlatformerMotor2D motor;
+    GroupFollowCamera2D followCamera;
 
-    // Example: Synced network variables
-    [Networked] public bool changedFlag { get; set; }
+    // Presentation hooks for the character/animation work, available on every peer.
+    [Networked] public NetworkBool IsGrounded { get; private set; }
+    [Networked] public NetworkBool IsClimbing { get; private set; }
+    [Networked] public Vector2 MovementVelocity { get; private set; }
+    [Networked] public int FacingDirection { get; private set; }
 
-    // required to detect networked variable changes
-    private ChangeDetector changeDetector;
+    void Awake() => motor = GetComponent<PlatformerMotor2D>();
 
-
-    private void Awake()
+    public override void Spawned()
     {
-        rb = GetComponent<Rigidbody2D>();
+        if (HasStateAuthority) FacingDirection = 1;
     }
 
-    private void RegisterCameraTarget()
+    public override void Render()
     {
         if (followCamera == null) followCamera = GroupFollowCamera2D.ForMainCamera();
         if (followCamera != null) followCamera.Register(transform);
     }
 
-    public override void Despawned(NetworkRunner runner, bool hasState)
-    {
-        if (followCamera != null) followCamera.Unregister(transform);
-    }
-
-    private void OnDisable()
-    {
-        if (followCamera != null) followCamera.Unregister(transform);
-    }
-
-    // Once this player is spawned in
-    public override void Spawned()
-    {
-        changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState); // init
-    }
-
-    // After update() function, invoke any needed network changes
-    public override void Render()
-    {
-        // Every visible player joins the local group; input authority does not gate framing.
-        RegisterCameraTarget();
-        
-        // example on how to listen to changes in variables
-        foreach (string change in changeDetector.DetectChanges(this))
-        {
-            switch (change)
-            {
-                case nameof(changedFlag):
-                    Debug.Log($"changed flag: {changedFlag}");
-                    break;
-            }
-        }
-    }
-
-    // PLAYER MOVEMENT GOES HERE
-    // Called every multiplayer simulation "tick"
     public override void FixedUpdateNetwork()
     {
-        if (GameManager.Instance.currentGameMode == Enums.Gamemode.EditMode)
-            return;
-        
-        // Server -> sends us our local player input to update!
-        if (GetInput(out NetworkInputData data))
-        {
+        // This project has Forecast disabled and no rollback physics addon.
+        // The host consumes each owner's input; clients display NetworkTransform snapshots.
+        if (!HasStateAuthority) return;
+        if (motor == null) motor = GetComponent<PlatformerMotor2D>();
 
-            rb.AddForce(data.moveDirection * 50f * Runner.DeltaTime, ForceMode2D.Impulse);
-            
-        }
+        bool canMove = GameManager.Instance != null && GameManager.Instance.Object != null &&
+            GameManager.Instance.Object.IsValid && GameManager.Instance.currentGameMode == Enums.Gamemode.PlayMode;
+        bool hasInput = GetInput(out NetworkInputData input);
+        // Missing packets stop movement without manufacturing a release/re-press of a held jump.
+        motor.Step(hasInput ? input.moveDirection.x : 0, hasInput ? input.climbDirection : 0,
+            hasInput ? input.moveDirection.y > .5f : motor.JumpHeld, canMove, Runner.DeltaTime);
+        IsGrounded = motor.IsGrounded;
+        IsClimbing = motor.IsClimbing;
+        MovementVelocity = motor.Velocity;
+        FacingDirection = motor.FacingDirection;
+    }
+
+    public override void Despawned(NetworkRunner runner, bool hasState) => ReleaseCamera();
+    void OnDisable() => ReleaseCamera();
+    void ReleaseCamera()
+    {
+        if (followCamera != null) followCamera.Unregister(transform);
     }
 }

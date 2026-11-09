@@ -175,6 +175,7 @@ GameObject:
   - component: {fileID: 4481970140050188109}
   - component: {fileID: 1155547393105610135}
   - component: {fileID: 7597143300529459245}
+  - component: {fileID: 739104287651990001}
   m_Layer: 0
   m_Name: Character1
   m_TagString: Untagged
@@ -245,7 +246,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!114 &1155547393105610135
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -299,4 +300,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 478d5fe3907789b42a00644705a1ff40, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovementMultiplayer
-  circle_prefab: {fileID: 7013930666525583935, guid: 0ed0ea4d69ff8cd4b8214ec78941b9ed, type: 3}
+--- !u!114 &739104287651990001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8965931429227689626}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 041efc2a832d4a2e8891d33ecd9d74bc, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::PlatformerMotor2D
+  walkSpeed: 6
+  acceleration: 40
+  deceleration: 50
+  airAcceleration: 25
+  jumpSpeed: 11
+  climbSpeed: 4
+  maximumFallSpeed: 20
+  groundCheckDistance: 0.05
+  minimumGroundNormalY: 0.65
+  groundLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
