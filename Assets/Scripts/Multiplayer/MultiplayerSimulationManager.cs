@@ -25,7 +25,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     [SerializeField] private NetworkPrefabRef _GameManager_Prefab;
 
     
-    // Stores all players
+    // Stores all players profiles
     [SerializeField] private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new();
     
     // readOnly version of this dictionary (for outside scripts to use)
@@ -159,9 +159,9 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
             data.moveDirection += Vector2.up;
 
         if (Keyboard.current.wKey.isPressed)
-            data.climbDirection += Vector2.up;
+            data.climbDirection = NetworkInputData.climbingUp;
         if (Keyboard.current.sKey.isPressed)
-            data.climbDirection += Vector2.down;
+            data.climbDirection = NetworkInputData.climbingDown;
 
 
         // read sampled mouse click

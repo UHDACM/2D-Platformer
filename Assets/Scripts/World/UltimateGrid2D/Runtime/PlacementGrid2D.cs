@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -5,6 +6,17 @@ namespace UltimateGrid2D
 {
     public class PlacementGrid2D : MonoBehaviour
     {
+        public static PlacementGrid2D Instance;
+
+        private void Awake()
+        {
+            if (Instance == null)
+                Instance = this;
+            else
+                Debug.LogError("Multiple Instance of PlacementGrid2D detected!");
+        }
+        
+
         [Min(.01f)] public float cellSize = 1;
         public Vector2Int dimensions = new Vector2Int(20, 12);
         readonly Dictionary<Vector2Int, GridPlaceable2D> occupied = new Dictionary<Vector2Int, GridPlaceable2D>();

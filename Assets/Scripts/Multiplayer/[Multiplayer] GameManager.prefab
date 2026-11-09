@@ -47,6 +47,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   _Player_Prefab:
     RawGuidValue: 704ba27483777874b94b76d2d3cabc3cl
+  _LocalPacableManager_Prefab:
+    RawGuidValue: 73261bce141088f44a1aa23241a27221l
+  _PlacableList:
+  - RawGuidValue: 118ad27dbdf8b4a4eb2ee75b75754bc6l
+  - RawGuidValue: 171cb37718ef1c544a4e7d1da2c9e50bl
+  - RawGuidValue: 3e1fff74c9d1f5e4e978638c96e52433l
+  _currentGameMode: 0
+  hasPlacedPlacable: 0
 --- !u!114 &6187292281339369145
 MonoBehaviour:
   m_ObjectHideFlags: 0

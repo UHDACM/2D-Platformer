@@ -1,10 +1,16 @@
+using System;
+using Fusion;
 using UnityEngine;
 
 namespace UltimateGrid2D
 {
     [DisallowMultipleComponent]
-    public class GridPlaceable2D : MonoBehaviour
+    public class GridPlaceable2D : MonoBehaviourPlus
     {
+        public override string prettyName => "GridPlaceable2D";
+        public override string description => "change the settings for each placable";
+        
+        [ReadOnly]
         public PlacementGrid2D grid;
         public PlaceableDefinition2D definition;
         public bool movable = true;
@@ -16,8 +22,12 @@ namespace UltimateGrid2D
             transform.SetPositionAndRotation(grid.PivotPosition(anchor, definition.RotatedPivot(rotation)),
                 Quaternion.Euler(0, 0, 90 * PlaceableDefinition2D.NormalizeRotation(rotation)));
         }
+        
         void Start()
         {
+            grid = PlacementGrid2D.Instance;
+            
+            
             if (grid == null || definition == null)
             {
                 Debug.LogError("Assign a grid and definition to " + name, this);
