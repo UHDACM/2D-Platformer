@@ -111,7 +111,7 @@ public sealed class PlatformerMotor2D : MonoBehaviour
         {
             if (shape == null || !shape.enabled || !shape.gameObject.activeInHierarchy || shape.attachedRigidbody != body) continue;
             overlaps.Clear();
-            shape.OverlapCollider(filter, overlaps);
+            shape.Overlap(filter, overlaps);
             foreach (var overlap in overlaps)
             {
                 if (!overlap.isTrigger || overlap.attachedRigidbody == body) continue;
