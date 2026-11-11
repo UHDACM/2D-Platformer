@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.InputSystem;
 
 public class SceneRouter : MonoBehaviourPlus
 {
@@ -13,6 +12,9 @@ public class SceneRouter : MonoBehaviourPlus
     //
     ////////////////////////////////
     /// 
+    public bool IsLoading { get; private set; }
+    public bool GameSceneReady { get; private set; }
+
     public Action RPC_OnStartMenuScene;
     public Action RPC_OnStartMapScene;
     public Action RPC_OnStartGameScene;
@@ -62,146 +64,81 @@ public class SceneRouter : MonoBehaviourPlus
 
     }
 
-    /* Only to test the Scene Router
-    private void Update()
+    public void HostStarts() => StartCoroutine(Transition(map_scene, OnExitMenuScene, OnStartMapScene, RPC_OnStartMapScene));
+    public void QuitMapScene() => StartCoroutine(Transition(menu_scene, OnExitMapScene, OnStartMenuScene, RPC_OnStartMenuScene));
+    public void GameEnds() => StartCoroutine(Transition(map_scene, OnExitGameScene, OnStartMapScene, RPC_OnStartMapScene));
+
+    public void MapChosen(Enums.Maps mapChosen)
     {
-        if (Keyboard.current.aKey.wasPressedThisFrame)
-            HostStarts();
-        if (Keyboard.current.bKey.wasPressedThisFrame)
-            MapChosen(Enums.Maps.Grass);
-        if (Keyboard.current.cKey.wasPressedThisFrame)
-            GameEnds();
-        if (Keyboard.current.dKey.wasPressedThisFrame)
-            QuitMapScene();
-    } */
-    
-    ////////////////////////////////
-    //
-    ////////////////////////////////
-
-    public void HostStarts() => StartCoroutine(HostStartsLoad());
-    public void QuitMapScene() => StartCoroutine(QuitMapSceneLoad());
-    public void MapChosen(Enums.Maps mapChosen) => StartCoroutine(MapChosenLoad(mapChosen));
-    public void GameEnds() => StartCoroutine(GameEndsLoad());
-
-    // Coroutines
-    private IEnumerator HostStartsLoad()
-    {
-        OnExitMenuScene?.Invoke();
-
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
-        AsyncOperation asyncLoad = 
-            SceneManager.LoadSceneAsync(map_scene, LoadSceneMode.Additive);
-
-        while (!asyncLoad.isDone)
-        {
-#if UNITY_EDITOR
-            Debug.Log($"Loading Map Scene: %{asyncLoad.progress}");
-#endif
-            yield return null;
-        }
-        
-        SceneManager.UnloadSceneAsync(loading_scene);
-        OnStartMapScene?.Invoke();
-        RPC_OnStartMapScene?.Invoke();
-    }
-    
-    ////////////////////////////////
-    //
-    ////////////////////////////////
-    
-    private IEnumerator QuitMapSceneLoad()
-    {
-        OnExitMapScene?.Invoke();
-
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
-        AsyncOperation asyncLoad = 
-            SceneManager.LoadSceneAsync(menu_scene, LoadSceneMode.Additive);
-
-        while (!asyncLoad.isDone)
-        {
-#if UNITY_EDITOR
-            Debug.Log($"Loading Menu Scene: %{asyncLoad.progress}");
-#endif
-            yield return null;
-        }
-        
-        SceneManager.UnloadSceneAsync(loading_scene);
-        OnStartMenuScene?.Invoke();
-        RPC_OnStartMenuScene?.Invoke();
-    }
-    
-    
-    ////////////////////////////////
-    //
-    ////////////////////////////////
-
-    private IEnumerator MapChosenLoad(Enums.Maps mapChosen)
-    {
-        OnExitMapScene?.Invoke();
-
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
-        AsyncOperation asyncLoad = new AsyncOperation();
-        
-        // Multiplex between possible maps
+        string destination;
         switch (mapChosen)
         {
-            case Enums.Maps.Undersea:
-                asyncLoad = SceneManager.LoadSceneAsync(undersea_scene, LoadSceneMode.Additive);
-                break;
-            case Enums.Maps.Ice:
-                asyncLoad = SceneManager.LoadSceneAsync(ice_scene, LoadSceneMode.Additive);
-                break;
-            case Enums.Maps.Lava:
-                asyncLoad = SceneManager.LoadSceneAsync(lava_scene, LoadSceneMode.Additive);
-                break;
-            case Enums.Maps.Space:
-                asyncLoad = SceneManager.LoadSceneAsync(space_scene, LoadSceneMode.Additive);
-                break;
-            case Enums.Maps.Grass:
-                asyncLoad = SceneManager.LoadSceneAsync(grass_scene, LoadSceneMode.Additive);
-                break;
+            case Enums.Maps.Undersea: destination = undersea_scene; break;
+            case Enums.Maps.Ice: destination = ice_scene; break;
+            case Enums.Maps.Lava: destination = lava_scene; break;
+            case Enums.Maps.Space: destination = space_scene; break;
+            case Enums.Maps.Grass: destination = grass_scene; break;
             default:
-                Debug.LogError("Uh oh. Something seriously went wrong with the Scene Router rip. ");
-                break;
+                Debug.LogError($"SceneRouter: unknown map '{mapChosen}'.", this);
+                return;
         }
-        
-        while (!asyncLoad.isDone)
-        {
-#if UNITY_EDITOR
-            Debug.Log($"Loading Menu Scene: %{asyncLoad.progress}");
-#endif
-            yield return null;
-        }
-        
-        SceneManager.UnloadSceneAsync(loading_scene);
-        OnStartGameScene?.Invoke();
-        RPC_OnStartGameScene?.Invoke();        
+        StartCoroutine(Transition(destination, OnExitMapScene, OnStartGameScene, RPC_OnStartGameScene, true));
     }
 
-    ////////////////////////////////
-    //
-    ////////////////////////////////
-    
-    private IEnumerator GameEndsLoad()
+    // Inspector references can be full asset paths or short scene names.
+    // Never fall back to a same-named scene when an explicit path was supplied.
+    public static Scene FindLoadedScene(string sceneReference)
     {
-        OnExitGameScene?.Invoke();
-
-        SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
-        AsyncOperation asyncLoad = 
-            SceneManager.LoadSceneAsync(map_scene, LoadSceneMode.Additive);
-
-        while (!asyncLoad.isDone)
+        if (string.IsNullOrWhiteSpace(sceneReference)) return default;
+        string reference = sceneReference.Replace('\\', '/');
+        if (reference.Contains("/"))
         {
-#if UNITY_EDITOR
-            Debug.Log($"Loading Menu Scene: %{asyncLoad.progress}");
-#endif
-            yield return null;
+            if (!reference.EndsWith(".unity", StringComparison.OrdinalIgnoreCase)) reference += ".unity";
+            return SceneManager.GetSceneByPath(reference);
         }
-        
-        SceneManager.UnloadSceneAsync(loading_scene);
-        OnStartMapScene?.Invoke();
-        RPC_OnStartMapScene?.Invoke();
+        if (reference.EndsWith(".unity", StringComparison.OrdinalIgnoreCase))
+            reference = reference.Substring(0, reference.Length - ".unity".Length);
+        return SceneManager.GetSceneByName(reference);
     }
-    
+
+    bool CanLoad(string sceneReference)
+    {
+        if (!string.IsNullOrWhiteSpace(sceneReference) && Application.CanStreamedLevelBeLoaded(sceneReference)) return true;
+        Debug.LogError($"SceneRouter: scene '{sceneReference}' is missing or disabled in the active Build Profile scene list. " +
+            "Use TestMultiplayer or include the menu, loading, map-selection, and gameplay scenes.", this);
+        return false;
+    }
+
+    IEnumerator Transition(string destination, Action leaving, Action arrived, Action rpc, bool gameScene = false)
+    {
+        if (IsLoading) yield break;
+        // Validate before unloading the current scene or despawning its network controller.
+        if (!CanLoad(loading_scene) || !CanLoad(destination)) yield break;
+        IsLoading = true;
+        GameSceneReady = false;
+        try
+        {
+            leaving?.Invoke();
+            yield return SceneManager.LoadSceneAsync(loading_scene, LoadSceneMode.Single);
+            yield return SceneManager.LoadSceneAsync(destination, LoadSceneMode.Additive);
+
+            Scene loaded = FindLoadedScene(destination);
+            if (!loaded.IsValid() || !loaded.isLoaded || !SceneManager.SetActiveScene(loaded))
+            {
+                Debug.LogError($"SceneRouter: loaded destination '{destination}' could not be activated.", this);
+                yield break;
+            }
+            Scene loading = FindLoadedScene(loading_scene);
+            if (loading.IsValid() && loading.isLoaded && loading != loaded)
+                yield return SceneManager.UnloadSceneAsync(loading);
+            GameSceneReady = gameScene;
+        }
+        finally
+        {
+            // A failed load must not permanently block future transitions.
+            IsLoading = false;
+        }
+        arrived?.Invoke();
+        rpc?.Invoke();
+    }
 }

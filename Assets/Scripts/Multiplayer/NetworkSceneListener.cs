@@ -22,23 +22,27 @@ public class NetworkSceneListener : MonoBehaviourPlus
         DontDestroyOnLoad(gameObject);
     }
     
+    int observedIndex = -1;
+    GlobalGameSettings observedSettings;
+    bool wasInGame;
     private void Update()
     {
-        GlobalGameSettings gs = GlobalGameSettings.Instance;    
-        if (gs == null) return;
-        
-        
-        // assigned by Network Simulation Manager
-        foreach (string change in gs.changeDetector.DetectChanges(gs))
+        var settings = GlobalGameSettings.Instance;
+        var router = SceneRouter.Instance;
+        if (settings == null || settings.Object == null || !settings.Object.IsValid || router == null || router.IsLoading) return;
+        if (observedSettings != settings)
         {
-            switch (change)
-            {
-                case nameof(gs.sceneIndex):
-                    Debug.Log($"scene index changed to: {gs.sceneIndex}");
-                    SceneChanged(gs.sceneIndex);
-                    break;
-            }
+            observedSettings = settings;
+            observedIndex = -1;
+            wasInGame = false;
         }
+        int index = settings.sceneIndex;
+        if (index == observedIndex || index == (int)Enums.Scenes.Loading) return;
+        bool firstSnapshot = observedIndex < 0;
+        observedIndex = index;
+        // Apply late joiners' current scene even when there is no change event.
+        if (firstSnapshot && index == (int)Enums.Scenes.Menu) return;
+        SceneChanged(index);
     }
 
     public void SceneChanged(int index)
@@ -47,7 +51,10 @@ public class NetworkSceneListener : MonoBehaviourPlus
             SceneRouter.Instance.QuitMapScene();
         
         if (index == (int)Enums.Scenes.Map)
-            SceneRouter.Instance.HostStarts();
+        {
+            if (wasInGame) SceneRouter.Instance.GameEnds();
+            else SceneRouter.Instance.HostStarts();
+        }
         
         if (index == (int)Enums.Scenes.Grass)
             SceneRouter.Instance.MapChosen(Enums.Maps.Grass);
@@ -63,6 +70,8 @@ public class NetworkSceneListener : MonoBehaviourPlus
         
         if (index == (int)Enums.Scenes.Undersea)
             SceneRouter.Instance.MapChosen(Enums.Maps.Undersea);
+
+        wasInGame = index >= (int)Enums.Scenes.Grass && index <= (int)Enums.Scenes.Undersea;
     }
     
 }

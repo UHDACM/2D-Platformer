@@ -17,6 +17,8 @@ public class PlayerMovementMultiplayer : NetworkBehaviour
 
     public override void Spawned()
     {
+        // A slower peer may still be unloading the vote scene when this spawn arrives.
+        DontDestroyOnLoad(gameObject);
         if (HasStateAuthority) FacingDirection = 1;
     }
 

@@ -16,6 +16,7 @@ public class GlobalGameSettings : NetworkBehaviour
     
     public override void Spawned()
     {
+        DontDestroyOnLoad(gameObject);
         changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
         
         Instance = this;

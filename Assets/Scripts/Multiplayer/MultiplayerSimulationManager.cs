@@ -31,6 +31,8 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     private NetworkRunner _hostRunner;
     private NetworkObject _globalGameSettings;
     private NetworkObject _GameManager; // only one instance allowed in host game
+    private NetworkObject sceneController;
+    private SceneRouter subscribedRouter;
 
     
     public static MultiplayerSimulationManager Instance { get; private set; }
@@ -89,7 +91,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
                 DontDestroyOnLoad(_globalGameSettings.gameObject);                
                 
                 // RPC
-                 _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+                 SpawnMenuController();
             }
 
             
@@ -99,30 +101,77 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
             // Keep track of the player avatars for easy access
             _spawnedCharacters.Add(player, networkPlayerObject);
             
-            // Idempotent, but oh well
-            SceneRouter.Instance.RPC_OnStartMenuScene = () => _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartMapScene = () => _hostRunner.Spawn(_MapSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-
-            // handle game manager
-            SceneRouter.Instance.OnStartGameScene += () =>
-            {
-                if (_GameManager == null) 
-                    _GameManager = _hostRunner.Spawn(_GameManager_Prefab, Vector3.zero, Quaternion.identity);
-            };
-
-            SceneRouter.Instance.OnExitGameScene += () =>
-            {
-                _GameManager = null;        // dont blow your foot off
-            };
+            SubscribeSceneCallbacks();
 
         }
         else
             Debug.Log("[Photon Multiplayer] Your Client has joined!");
     }
     
+    void SubscribeSceneCallbacks()
+    {
+        if (subscribedRouter != null) return;
+        subscribedRouter = SceneRouter.Instance;
+        subscribedRouter.RPC_OnStartMenuScene += SpawnMenuController;
+        subscribedRouter.RPC_OnStartMapScene += SpawnMapController;
+        subscribedRouter.RPC_OnStartGameScene += SpawnGameController;
+        subscribedRouter.OnStartGameScene += SpawnGameManager;
+        subscribedRouter.OnExitGameScene += DespawnGameManager;
+        subscribedRouter.OnExitMenuScene += DespawnSceneController;
+        subscribedRouter.OnExitMapScene += DespawnSceneController;
+        subscribedRouter.OnExitGameScene += DespawnSceneController;
+    }
+    void UnsubscribeSceneCallbacks()
+    {
+        if (subscribedRouter == null) return;
+        subscribedRouter.RPC_OnStartMenuScene -= SpawnMenuController;
+        subscribedRouter.RPC_OnStartMapScene -= SpawnMapController;
+        subscribedRouter.RPC_OnStartGameScene -= SpawnGameController;
+        subscribedRouter.OnStartGameScene -= SpawnGameManager;
+        subscribedRouter.OnExitGameScene -= DespawnGameManager;
+        subscribedRouter.OnExitMenuScene -= DespawnSceneController;
+        subscribedRouter.OnExitMapScene -= DespawnSceneController;
+        subscribedRouter.OnExitGameScene -= DespawnSceneController;
+        subscribedRouter = null;
+    }
+    void SpawnMenuController() => SpawnController(_MenuSceneRPCController_Prefab);
+    void SpawnMapController() => SpawnController(_MapSceneRPCController_Prefab);
+    void SpawnGameController() => SpawnController(_GameSceneRPCController_Prefab);
+    void SpawnController(NetworkPrefabRef prefab)
+    {
+        if (_hostRunner == null || !_hostRunner.IsRunning || !_hostRunner.IsServer) return;
+        DespawnSceneController();
+        sceneController = _hostRunner.Spawn(prefab, Vector3.zero, Quaternion.identity);
+    }
+    void DespawnSceneController()
+    {
+        if (sceneController != null && sceneController.IsValid) _hostRunner.Despawn(sceneController);
+        sceneController = null;
+    }
+    void SpawnGameManager()
+    {
+        if (_hostRunner != null && _hostRunner.IsRunning && _hostRunner.IsServer && _GameManager == null)
+            _GameManager = _hostRunner.Spawn(_GameManager_Prefab, Vector3.zero, Quaternion.identity);
+    }
+    void DespawnGameManager()
+    {
+        if (_GameManager != null && _GameManager.IsValid)
+        {
+            _GameManager.GetComponent<GameManager>().ShutdownRound();
+            _hostRunner.Despawn(_GameManager);
+        }
+        _GameManager = null;
+    }
+    void OnDestroy()
+    {
+        UnsubscribeSceneCallbacks();
+        if (Instance == this) Instance = null;
+    }
+
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
+        if (!runner.IsServer) return;
+        if (GameManager.Instance != null) GameManager.Instance.RemovePlayer(player);
         // Remove player from lists & destroy object
         if (_spawnedCharacters.TryGetValue(player, out NetworkObject networkObject))
         {
@@ -148,6 +197,12 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
 
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
+        UnsubscribeSceneCallbacks();
+        _spawnedCharacters.Clear();
+        _GameManager = null;
+        sceneController = null;
+        _globalGameSettings = null;
+        playerInput.Clear();
     }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
 
