@@ -258,6 +258,63 @@ public static class CameraAndGridChecks
             InputSystem.Update();
             Invoke(controller, "Update");
             Check(item.QuarterTurns == 1 && Quaternion.Angle(item.transform.rotation, Quaternion.Euler(0, 0, 90)) < .001f, "Fixed piece must ignore rotation");
+
+            // Round-owned pieces send a request, retaining their old reservation until a snapshot arrives.
+            item.movable = true;
+            controller.CanDrag = _ => false;
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = screen });
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = screen }.WithButton(MouseButton.Left));
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            var dragField = typeof(GridDragController2D).GetField("dragging", BindingFlags.Instance | BindingFlags.NonPublic);
+            Check(dragField.GetValue(controller) == null, "Ownership hook did not block pickup");
+            controller.CanDrag = _ => true;
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = screen });
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = screen }.WithButton(MouseButton.Left));
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            Check(dragField.GetValue(controller) == item, "Owned piece was not picked up");
+            var oldAnchor = item.Anchor;
+            Vector3 oldPose = item.transform.position;
+            int requests = 0;
+            Vector2Int sentAnchor = default;
+            int sentRotation = -1;
+            controller.PlacementRequest = (piece, anchor, rotation) =>
+            {
+                Check(piece == item, "Placement callback received the wrong piece");
+                requests++;
+                sentAnchor = anchor;
+                sentRotation = rotation;
+                return false;
+            };
+            Vector2 movedScreen = camera.WorldToScreenPoint(oldPose + new Vector3(4, 0, 0));
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = movedScreen }.WithButton(MouseButton.Left));
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.R));
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            Check(item.QuarterTurns == 1, "Network preview committed locally");
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = movedScreen });
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            Check(requests == 1 && sentRotation == 2 && sentAnchor != oldAnchor, "Placement request lost its anchor or rotation");
+            Check(item.Anchor == oldAnchor && item.transform.position == oldPose && item.QuarterTurns == 1, "Pending placement did not restore reserved pose");
+            Check(grid.TryPlace(item, sentAnchor, sentRotation), "Authoritative placement could not be applied");
+
+            // A snapshot cancels only the affected preview before applying its committed pose.
+            screen = camera.WorldToScreenPoint(item.transform.position);
+            InputSystem.QueueStateEvent(keyboard, new KeyboardState());
+            InputSystem.QueueStateEvent(mouse, new MouseState { position = screen }.WithButton(MouseButton.Left));
+            InputSystem.Update();
+            Invoke(controller, "Update");
+            controller.CancelDragFor(null);
+            Check(dragField.GetValue(controller) == item, "Unrelated snapshot cancelled an owned drag");
+            controller.CancelDragFor(item);
+            Check(dragField.GetValue(controller) == null, "Affected snapshot left a stale preview active");
         }
         finally
         {

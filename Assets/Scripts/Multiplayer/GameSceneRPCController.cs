@@ -13,10 +13,13 @@ public class GameSceneRPCController : NetworkBehaviour
         //"Interprocess communication via Remote Procedure Calls\n lets you call another PC's c# functions";
         
 
+    public override void Spawned() => DontDestroyOnLoad(gameObject);
+
     private void Update()
     {
         
-        if (Object.HasStateAuthority &&
+        if (Object != null && Object.IsValid && Object.HasStateAuthority && Keyboard.current != null &&
+            SceneRouter.Instance != null && !SceneRouter.Instance.IsLoading &&
             Keyboard.current.digit1Key.wasPressedThisFrame)
             GlobalGameSettings.Instance.sceneIndex = (int)Enums.Scenes.Map;
         

@@ -1,74 +1,84 @@
-using System;
+using System.Linq;
 using Fusion;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class MapSceneRPCController : NetworkBehaviour
 {
-    //public override string prettyName => "Multiplayer RPC Controller";
+    [Min(1)] public float votingSeconds = 20;
+    public bool showVotingControls = true;
+    [Networked] public TickTimer VoteTimer { get; private set; }
+    [Networked] public NetworkBool VotingClosed { get; private set; }
+    [Networked] public int EligiblePlayers { get; private set; }
+    [Networked] public Enums.Maps SelectedMap { get; private set; }
+    [Networked, Capacity(SessionRules.MaxPlayers)] public NetworkDictionary<PlayerRef, int> Votes => default;
+    readonly MapBallot ballot = new MapBallot();
 
-    //public override string description =>
-        //"Interprocess communication via Remote Procedure Calls\n lets you call another PC's c# functions";
-        
-    private void Update()
+    public override void Spawned()
     {
-        
-        if (Object.HasStateAuthority &&
-            Keyboard.current.digit1Key.wasPressedThisFrame)
-            GlobalGameSettings.Instance.sceneIndex = (int)Enums.Scenes.Grass;
-
-        /*
-        // Host -> all clients
-        if (Object.HasStateAuthority &&
-            Keyboard.current.digit2Key.wasPressedThisFrame)
-            RPC_toClient("Hello this is coming from your host!");
-
-        // Client -> Host
-        if (Object.HasInputAuthority &&
-            Keyboard.current.digit1Key.wasPressedThisFrame)
-            RPC_toHost("Hello this is coming from  a client!");
-
-
-        //  Client -> all clients
-        if (Object.HasInputAuthority &&
-            Keyboard.current.digit3Key.wasPressedThisFrame)
-            RPC_SendMessage("Hello this is coming from  a client!");
-        */
+        DontDestroyOnLoad(gameObject);
+        if (!HasStateAuthority) return;
+        VoteTimer = TickTimer.CreateFromSeconds(Runner, Mathf.Max(1, votingSeconds));
+        RefreshMembers();
     }
-
-
-    // Client -> Host
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority, HostMode = RpcHostMode.SourceIsHostPlayer)]
-    public void RPC_toHost(string message, RpcInfo info = default)
+    void RefreshMembers()
     {
-        Debug.Log($"message recieved from client: {info.Source.PlayerId}");
+        ballot.SetMembers(Runner.ActivePlayers.Select(player => player.RawEncoded));
+        EligiblePlayers = ballot.EligibleCount;
+        foreach (var pair in Votes.ToArray())
+            if (!ballot.Votes.ContainsKey(pair.Key.RawEncoded)) Votes.Remove(pair.Key);
     }
-
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All, HostMode = RpcHostMode.SourceIsServer)]
-    public void RPC_toClient(string message)
+    public void VoteForMap(int map)
     {
-        Debug.Log($"message recieved from host!");
+        if (Object != null && Object.IsValid && !VotingClosed && SessionRules.ValidMap((Enums.Maps)map)) RPC_Vote(map);
     }
-
-    
-    
-    // Message relay, client -> via host -> all clients
-    [Rpc(RpcSources.InputAuthority, RpcTargets.StateAuthority, HostMode = RpcHostMode.SourceIsHostPlayer)]
-    public void RPC_SendMessage(string message, RpcInfo info = default)
+    [Rpc(RpcSources.All, RpcTargets.StateAuthority, HostMode = RpcHostMode.SourceIsHostPlayer)]
+    public void RPC_Vote(int map, RpcInfo info = default)
     {
-        RPC_RelayMessage(message, info.Source);
+        if (!HasStateAuthority || VotingClosed || VoteTimer.Expired(Runner) || info.Source == PlayerRef.None) return;
+        RefreshMembers();
+        if (ballot.Vote(info.Source.RawEncoded, (Enums.Maps)map)) Votes.Set(info.Source, map);
     }
-
-    [Rpc(RpcSources.StateAuthority, RpcTargets.All, HostMode = RpcHostMode.SourceIsServer)]
-    public void RPC_RelayMessage(string message, PlayerRef messageSource)
+    public override void FixedUpdateNetwork()
     {
-        if (messageSource == Runner.LocalPlayer)
+        if (!HasStateAuthority || VotingClosed) return;
+        RefreshMembers();
+        if (!ballot.AllVoted && !VoteTimer.Expired(Runner)) return;
+        var settings = GlobalGameSettings.Instance;
+        if (settings == null || !settings.HasStateAuthority) return;
+        SelectedMap = ballot.Close();
+        VotingClosed = true;
+        VoteTimer = TickTimer.None;
+        settings.sceneIndex = (int)SessionRules.SceneForMap(SelectedMap);
+    }
+    void Update()
+    {
+        if (Object == null || !Object.IsValid || VotingClosed || Keyboard.current == null ||
+            (SceneRouter.Instance != null && SceneRouter.Instance.IsLoading)) return;
+        var keys = Keyboard.current;
+        if (keys.digit1Key.wasPressedThisFrame) VoteForMap((int)Enums.Maps.Grass);
+        if (keys.digit2Key.wasPressedThisFrame) VoteForMap((int)Enums.Maps.Ice);
+        if (keys.digit3Key.wasPressedThisFrame) VoteForMap((int)Enums.Maps.Lava);
+        if (keys.digit4Key.wasPressedThisFrame) VoteForMap((int)Enums.Maps.Space);
+        if (keys.digit5Key.wasPressedThisFrame) VoteForMap((int)Enums.Maps.Undersea);
+    }
+    void OnGUI()
+    {
+        if (!showVotingControls || Object == null || !Object.IsValid) return;
+        GUILayout.BeginArea(new Rect(20, 20, 300, 290), GUI.skin.box);
+        GUILayout.Label($"Choose a map - {Votes.Count}/{EligiblePlayers} votes");
+        GUILayout.Label(VotingClosed ? $"Loading {SelectedMap}" : $"{Mathf.CeilToInt(VoteTimer.RemainingTime(Runner) ?? 0)} seconds remaining");
+        bool wasEnabled = GUI.enabled;
+        GUI.enabled = !VotingClosed;
+        int index = 1;
+        foreach (var map in SessionRules.MapOrder)
         {
-            message = $"You said: {message}\n";
+            int count = Votes.Count(pair => pair.Value == (int)map);
+            bool mine = Votes.TryGet(Runner.LocalPlayer, out int choice) && choice == (int)map;
+            if (GUILayout.Button($"{index++}. {map} ({count}){(mine ? " - your vote" : "")}")) VoteForMap((int)map);
         }
-        else
-        {
-            message = $"Some other player said: {message}\n";
-        }
+        GUI.enabled = wasEnabled;
+        GUILayout.Label("You can change your vote until voting closes.\nTies use map order; no votes selects Grass.");
+        GUILayout.EndArea();
     }
 }

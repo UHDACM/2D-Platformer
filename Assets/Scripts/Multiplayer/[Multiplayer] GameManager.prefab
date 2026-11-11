@@ -47,6 +47,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   _Player_Prefab:
     RawGuidValue: 704ba27483777874b94b76d2d3cabc3cl
+  buildSeconds: 20
+  playSeconds: 60
+  resultsSeconds: 4
+  roundsPerMatch: 5
+  deathHeight: -20
+  spawnSpacing: 1.5
+  placeableDefinitions:
+  - {fileID: 11400000, guid: db698aefd2c07204d99ad08b6af36327, type: 2}
+  - {fileID: 11400000, guid: 5cd00d662aa12164fa7321bd06032cd7, type: 2}
+  - {fileID: 11400000, guid: 4b274b745ca1e1f4abcd7c17cc699004, type: 2}
+  showRoundStatus: 1
 --- !u!114 &6187292281339369145
 MonoBehaviour:
   m_ObjectHideFlags: 0
