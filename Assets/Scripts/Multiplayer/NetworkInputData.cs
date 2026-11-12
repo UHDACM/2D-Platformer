@@ -3,9 +3,6 @@ using Fusion;
 
 public struct NetworkInputData : INetworkInput
 {
-    public Vector2 Direction;
-    public NetworkButtons Buttons;
-    
-    // like a enum
-    public const byte MouseButton0 = 1;
+    public Vector2 moveDirection;   // x: walk, y: jump held/requested (0 or 1)
+    public float climbDirection;   // -1: down, 0: stop, +1: up
 }

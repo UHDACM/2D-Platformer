@@ -1,108 +1,56 @@
-using System;
 using Fusion;
 using UnityEngine;
 
+[RequireComponent(typeof(PlatformerMotor2D))]
 public class PlayerMovementMultiplayer : NetworkBehaviour
 {
-    private Rigidbody2D rb;
-    public GameObject circle_prefab;        // just for testing
+    PlatformerMotor2D motor;
+    GroupFollowCamera2D followCamera;
 
-    // Synced network variables
-    [Networked]
-    public bool changedFlag { get; set; }
-    [Networked]
-    public int changedInt { get; set; }
-    [Networked]
-    public Enums.Characters changedCharacter { get; set; }
+    // Presentation hooks for the character/animation work, available on every peer.
+    [Networked] public NetworkBool IsGrounded { get; private set; }
+    [Networked] public NetworkBool IsClimbing { get; private set; }
+    [Networked] public Vector2 MovementVelocity { get; private set; }
+    [Networked] public int FacingDirection { get; private set; }
 
-    // required to detect networked variable changes
-    private ChangeDetector changeDetector;
-    
-    
-    private void Awake()
-    {
-        rb = GetComponent<Rigidbody2D>();
-    }
+    void Awake() => motor = GetComponent<PlatformerMotor2D>();
 
-    private void Update()
-    {
-        if (!HasInputAuthority) return;
-        
-        // Jittery because the local synced-position != camera position
-        Vector3 v = transform.position;
-        v.z = -10f;
-
-        Camera.main.transform.position = v;
-    }
-
-    // Once this player is spawned in
     public override void Spawned()
     {
-        changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);  // init
-        
-        // init properties
-        changedFlag = false;
-        changedInt = 0;
-        changedCharacter = 0;
+        // A slower peer may still be unloading the vote scene when this spawn arrives.
+        DontDestroyOnLoad(gameObject);
+        if (HasStateAuthority) FacingDirection = 1;
     }
 
-    // After update() function, invoke any needed network changes
     public override void Render()
     {
-        foreach (string change in  changeDetector.DetectChanges(this))
-        {
-
-            switch (change)
-            {
-                case nameof(changedFlag):
-                    Debug.Log($"changed flag: {changedFlag}");
-
-                    break;
-                case nameof(changedInt):
-                    Debug.Log($"changed flag: {changedInt}");
-
-                    break;
-                case nameof(changedCharacter):
-                    Debug.Log($"changed flag: {changedCharacter.ToString()}");
-
-                    break;
-                
-            }
-        }
+        if (followCamera == null) followCamera = GroupFollowCamera2D.ForMainCamera();
+        if (followCamera != null) followCamera.Register(transform);
     }
 
-
-    // Called every multiplayer simulation "tick"
     public override void FixedUpdateNetwork()
     {
-        // Server -> sends us our local player input to update!
-        if (GetInput(out NetworkInputData data))
-        {
-            rb.AddForce(data.Direction * 50f * Runner.DeltaTime,  ForceMode2D.Impulse);
+        // This project has Forecast disabled and no rollback physics addon.
+        // The host consumes each owner's input; clients display NetworkTransform snapshots.
+        if (!HasStateAuthority) return;
+        if (motor == null) motor = GetComponent<PlatformerMotor2D>();
 
-            // if someone clicked. Only host gets to proceed in logic
-            if (HasStateAuthority && data.Buttons.IsSet(NetworkInputData.MouseButton0))
-            {
-                //
-                Runner.Spawn(
-                    circle_prefab,
-                    transform.position,
-                    Quaternion.LookRotation(data.Direction),
-                    Object.InputAuthority,
-                    // Logic to run after the prefab spawns, but before synchronized
-                    (runner, newCircle) =>
-                    {
-                        newCircle.GetComponent<scriptForBall>().Init();
-                        
-                    }
-                );
-
-                changedFlag = !changedFlag;
-                changedInt++;
-                changedCharacter = (Enums.Characters) (changedInt % 3);
-            }
-        }
+        bool canMove = GameManager.Instance != null && GameManager.Instance.Object != null &&
+            GameManager.Instance.Object.IsValid && GameManager.Instance.currentGameMode == Enums.Gamemode.PlayMode;
+        bool hasInput = GetInput(out NetworkInputData input);
+        // Missing packets stop movement without manufacturing a release/re-press of a held jump.
+        motor.Step(hasInput ? input.moveDirection.x : 0, hasInput ? input.climbDirection : 0,
+            hasInput ? input.moveDirection.y > .5f : motor.JumpHeld, canMove, Runner.DeltaTime);
+        IsGrounded = motor.IsGrounded;
+        IsClimbing = motor.IsClimbing;
+        MovementVelocity = motor.Velocity;
+        FacingDirection = motor.FacingDirection;
     }
-    
-    
+
+    public override void Despawned(NetworkRunner runner, bool hasState) => ReleaseCamera();
+    void OnDisable() => ReleaseCamera();
+    void ReleaseCamera()
+    {
+        if (followCamera != null) followCamera.Unregister(transform);
+    }
 }

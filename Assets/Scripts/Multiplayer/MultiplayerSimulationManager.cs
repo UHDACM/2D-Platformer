@@ -2,11 +2,8 @@ using System;
 using System.Collections.Generic;
 using Fusion;
 using Fusion.Sockets;
-using Unity.Mathematics;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.InputSystem;
-using Object = System.Object;
 
 public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCallbacks
 {
@@ -22,15 +19,20 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     [SerializeField] private NetworkPrefabRef _MenuSceneRPCController_Prefab;
     [SerializeField] private NetworkPrefabRef _MapSceneRPCController_Prefab;
     [SerializeField] private NetworkPrefabRef _GameSceneRPCController_Prefab;
+    [SerializeField] private NetworkPrefabRef _GameManager_Prefab;
 
     
-    // Hashmap of all players
-    [ReadOnly]
-    [SerializeField] Dictionary<PlayerRef, NetworkObject> 
-        _spawnedCharacters = new Dictionary<PlayerRef, NetworkObject>();
+    // Stores all players
+    [SerializeField] private Dictionary<PlayerRef, NetworkObject> _spawnedCharacters = new();
+    
+    // readOnly version of this dictionary (for outside scripts to use)
+    public IReadOnlyDictionary<PlayerRef, NetworkObject> spawnedCharacters => _spawnedCharacters;
     
     private NetworkRunner _hostRunner;
     private NetworkObject _globalGameSettings;
+    private NetworkObject _GameManager; // only one instance allowed in host game
+    private NetworkObject sceneController;
+    private SceneRouter subscribedRouter;
 
     
     public static MultiplayerSimulationManager Instance { get; private set; }
@@ -89,7 +91,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
                 DontDestroyOnLoad(_globalGameSettings.gameObject);                
                 
                 // RPC
-                 _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
+                 SpawnMenuController();
             }
 
             
@@ -99,18 +101,77 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
             // Keep track of the player avatars for easy access
             _spawnedCharacters.Add(player, networkPlayerObject);
             
-            // Idempotent, but oh well
-            SceneRouter.Instance.RPC_OnStartMenuScene = () => _hostRunner.Spawn(_MenuSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartMapScene = () => _hostRunner.Spawn(_MapSceneRPCController_Prefab, Vector3.zero, Quaternion.identity);
-            SceneRouter.Instance.RPC_OnStartGameScene = () => _hostRunner.Spawn(_GameSceneRPCController_Prefab, Vector3.zero, Quaternion.identity, player);
+            SubscribeSceneCallbacks();
 
         }
         else
             Debug.Log("[Photon Multiplayer] Your Client has joined!");
-
     }
+    
+    void SubscribeSceneCallbacks()
+    {
+        if (subscribedRouter != null) return;
+        subscribedRouter = SceneRouter.Instance;
+        subscribedRouter.RPC_OnStartMenuScene += SpawnMenuController;
+        subscribedRouter.RPC_OnStartMapScene += SpawnMapController;
+        subscribedRouter.RPC_OnStartGameScene += SpawnGameController;
+        subscribedRouter.OnStartGameScene += SpawnGameManager;
+        subscribedRouter.OnExitGameScene += DespawnGameManager;
+        subscribedRouter.OnExitMenuScene += DespawnSceneController;
+        subscribedRouter.OnExitMapScene += DespawnSceneController;
+        subscribedRouter.OnExitGameScene += DespawnSceneController;
+    }
+    void UnsubscribeSceneCallbacks()
+    {
+        if (subscribedRouter == null) return;
+        subscribedRouter.RPC_OnStartMenuScene -= SpawnMenuController;
+        subscribedRouter.RPC_OnStartMapScene -= SpawnMapController;
+        subscribedRouter.RPC_OnStartGameScene -= SpawnGameController;
+        subscribedRouter.OnStartGameScene -= SpawnGameManager;
+        subscribedRouter.OnExitGameScene -= DespawnGameManager;
+        subscribedRouter.OnExitMenuScene -= DespawnSceneController;
+        subscribedRouter.OnExitMapScene -= DespawnSceneController;
+        subscribedRouter.OnExitGameScene -= DespawnSceneController;
+        subscribedRouter = null;
+    }
+    void SpawnMenuController() => SpawnController(_MenuSceneRPCController_Prefab);
+    void SpawnMapController() => SpawnController(_MapSceneRPCController_Prefab);
+    void SpawnGameController() => SpawnController(_GameSceneRPCController_Prefab);
+    void SpawnController(NetworkPrefabRef prefab)
+    {
+        if (_hostRunner == null || !_hostRunner.IsRunning || !_hostRunner.IsServer) return;
+        DespawnSceneController();
+        sceneController = _hostRunner.Spawn(prefab, Vector3.zero, Quaternion.identity);
+    }
+    void DespawnSceneController()
+    {
+        if (sceneController != null && sceneController.IsValid) _hostRunner.Despawn(sceneController);
+        sceneController = null;
+    }
+    void SpawnGameManager()
+    {
+        if (_hostRunner != null && _hostRunner.IsRunning && _hostRunner.IsServer && _GameManager == null)
+            _GameManager = _hostRunner.Spawn(_GameManager_Prefab, Vector3.zero, Quaternion.identity);
+    }
+    void DespawnGameManager()
+    {
+        if (_GameManager != null && _GameManager.IsValid)
+        {
+            _GameManager.GetComponent<GameManager>().ShutdownRound();
+            _hostRunner.Despawn(_GameManager);
+        }
+        _GameManager = null;
+    }
+    void OnDestroy()
+    {
+        UnsubscribeSceneCallbacks();
+        if (Instance == this) Instance = null;
+    }
+
     void INetworkRunnerCallbacks.OnPlayerLeft(NetworkRunner runner, PlayerRef player)
     {
+        if (!runner.IsServer) return;
+        if (GameManager.Instance != null) GameManager.Instance.RemovePlayer(player);
         // Remove player from lists & destroy object
         if (_spawnedCharacters.TryGetValue(player, out NetworkObject networkObject))
         {
@@ -121,42 +182,27 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         Debug.Log("[Photon Multiplayer] Player Left!");
     }
 
-    // sample mouse click
-    private bool _mouseButton0;
-    private void Update()
-    {
-        // capture via new input system
-        _mouseButton0 = _mouseButton0 | Mouse.current.leftButton.wasPressedThisFrame;
-    }
+    private readonly PlatformerInputSampler playerInput = new PlatformerInputSampler();
 
+    private void Update() => playerInput.Capture(Keyboard.current);
+    private void OnApplicationFocus(bool focused) { if (!focused) playerInput.Clear(); }
 
     void INetworkRunnerCallbacks.OnInput(NetworkRunner runner, NetworkInput input)
     {
-        NetworkInputData data = new  NetworkInputData();
-        
-        // Read Keyboard
-        // Change later to other script
-        if (Keyboard.current.aKey.isPressed)
-            data.Direction += Vector2.left;
-        if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector2.right;
-        if (Keyboard.current.wKey.isPressed)
-            data.Direction += Vector2.up;
-        if (Keyboard.current.dKey.isPressed)
-            data.Direction += Vector2.down;
-
-        // read sampled mouse click
-        data.Buttons.Set(NetworkInputData.MouseButton0, _mouseButton0);
-        _mouseButton0 = false;
-        
-        // give input to the host
-        input.Set(data);
+        playerInput.Read(Keyboard.current, out Vector2 moveDirection, out float climbDirection);
+        input.Set(new NetworkInputData { moveDirection = moveDirection, climbDirection = climbDirection });
     }
-    
+
     void INetworkRunnerCallbacks.OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
 
     void INetworkRunnerCallbacks.OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason)
     {
+        UnsubscribeSceneCallbacks();
+        _spawnedCharacters.Clear();
+        _GameManager = null;
+        sceneController = null;
+        _globalGameSettings = null;
+        playerInput.Clear();
     }
     void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
 

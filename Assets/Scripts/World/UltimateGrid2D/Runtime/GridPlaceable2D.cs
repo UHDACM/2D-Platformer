@@ -8,7 +8,14 @@ namespace UltimateGrid2D
         public PlacementGrid2D grid;
         public PlaceableDefinition2D definition;
         public bool movable = true;
+        [SerializeField, Range(0, 3)] int quarterTurns;
+        public int QuarterTurns { get => PlaceableDefinition2D.NormalizeRotation(quarterTurns); internal set => quarterTurns = PlaceableDefinition2D.NormalizeRotation(value); }
         public Vector2Int Anchor { get; internal set; }
+        internal void ApplyPose(Vector2Int anchor, int rotation)
+        {
+            transform.SetPositionAndRotation(grid.PivotPosition(anchor, definition.RotatedPivot(rotation)),
+                Quaternion.Euler(0, 0, 90 * PlaceableDefinition2D.NormalizeRotation(rotation)));
+        }
         void Start()
         {
             if (grid == null || definition == null)
@@ -17,7 +24,7 @@ namespace UltimateGrid2D
                 enabled = false;
                 return;
             }
-            if (!grid.TryPlace(this, grid.SnapAnchor(transform.position, definition.pivot)))
+            if (!grid.TryPlace(this, grid.SnapAnchor(transform.position, definition.RotatedPivot(QuarterTurns))))
             {
                 Debug.LogError("Invalid initial placement: " + name + ". Fix the overlap or board bounds.", this);
                 gameObject.SetActive(false);

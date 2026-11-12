@@ -1554,6 +1554,8 @@ MonoBehaviour:
     RawGuidValue: f059e69640af93f4fa1bdf7961917408l
   _GameSceneRPCController_Prefab:
     RawGuidValue: d8076b86fa71ac34393327ea736b3d97l
+  _GameManager_Prefab:
+    RawGuidValue: 99f00d8e8f4f98d4e8e8865d5f397a18l
   _spawnedCharacters: []
 --- !u!4 &605392219
 Transform:

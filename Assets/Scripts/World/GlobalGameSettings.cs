@@ -8,11 +8,15 @@ public class GlobalGameSettings : NetworkBehaviour
     
     public ChangeDetector changeDetector;
     
+    
+    
+    
     // Singelton
     public static GlobalGameSettings Instance { get; private set; }
     
     public override void Spawned()
     {
+        DontDestroyOnLoad(gameObject);
         changeDetector = GetChangeDetector(ChangeDetector.Source.SimulationState);
         
         Instance = this;

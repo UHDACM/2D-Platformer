@@ -14,8 +14,13 @@ namespace UltimateGrid2D
         public LayerMask pickLayers = ~0;
         [SerializeField] bool buildMode = true;
         public bool BuildMode => buildMode;
+        // Optional round-manager hooks; standalone/local demo behavior is unchanged when unset.
+        public System.Func<GridPlaceable2D, bool> CanDrag;
+        public System.Func<GridPlaceable2D, Vector2Int, int, bool> PlacementRequest;
         GridPlaceable2D dragging;
         Vector3 originalPosition, grabOffset;
+        Quaternion originalRotation;
+        int candidateRotation;
         Vector2Int candidate;
         Rigidbody2D[] bodies;
         bool[] simulationStates;
@@ -64,6 +69,16 @@ namespace UltimateGrid2D
             }
             return best;
         }
+        bool RotatePressed()
+        {
+#if ENABLE_INPUT_SYSTEM
+            return Keyboard.current != null && Keyboard.current.rKey.wasPressedThisFrame;
+#elif ENABLE_LEGACY_INPUT_MANAGER
+            return Input.GetKeyDown(KeyCode.R);
+#else
+            return false;
+#endif
+        }
         void Update()
         {
             if (!buildMode) return;
@@ -78,24 +93,42 @@ namespace UltimateGrid2D
             {
                 var hovered = overUI ? null : Pick(world);
                 if (overlay != null) overlay.Show(hovered, hovered == null ? Vector2Int.zero : hovered.Anchor);
-                if (!pressed || hovered == null || !hovered.movable) return;
+                if (!pressed || hovered == null || !hovered.movable || (CanDrag != null && !CanDrag(hovered))) return;
                 dragging = hovered; originalPosition = dragging.transform.position; grabOffset = originalPosition - world;
+                originalRotation = dragging.transform.rotation;
+                candidateRotation = dragging.QuarterTurns;
                 bodies = dragging.GetComponentsInChildren<Rigidbody2D>(); simulationStates = new bool[bodies.Length];
                 for (int i = 0; i < bodies.Length; i++) { simulationStates[i] = bodies[i].simulated; bodies[i].simulated = false; }
             }
-            candidate = grid.SnapAnchor(world + grabOffset, dragging.definition.pivot);
-            dragging.transform.position = grid.PivotPosition(candidate, dragging.definition.pivot);
-            if (overlay != null) overlay.Show(dragging, candidate);
+            if (!overUI && RotatePressed())
+            {
+                candidateRotation = (candidateRotation + 1) % 4;
+                grabOffset = new Vector3(-grabOffset.y, grabOffset.x, grabOffset.z);
+            }
+            candidate = grid.SnapAnchor(world + grabOffset, dragging.definition.RotatedPivot(candidateRotation));
+            dragging.ApplyPose(candidate, candidateRotation);
+            if (overlay != null) overlay.Show(dragging, candidate, candidateRotation);
             if (released)
             {
-                if (overUI || !grid.TryPlace(dragging, candidate)) dragging.transform.position = originalPosition;
+                bool accepted = !overUI && (PlacementRequest != null
+                    ? PlacementRequest(dragging, candidate, candidateRotation)
+                    : grid.TryPlace(dragging, candidate, candidateRotation));
+                if (!accepted) RestorePose();
                 EndDrag();
             }
         }
         public void CancelDrag()
         {
-            if (dragging != null) dragging.transform.position = originalPosition;
+            RestorePose();
             EndDrag();
+        }
+        public void CancelDragFor(GridPlaceable2D item)
+        {
+            if (dragging == item) CancelDrag();
+        }
+        void RestorePose()
+        {
+            if (dragging != null) dragging.transform.SetPositionAndRotation(originalPosition, originalRotation);
         }
         void EndDrag()
         {
