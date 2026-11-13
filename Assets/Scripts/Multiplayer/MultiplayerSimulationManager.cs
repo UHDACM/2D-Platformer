@@ -34,7 +34,11 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
     private NetworkObject sceneController;
     private SceneRouter subscribedRouter;
 
-    
+
+    // Unity events
+    public event Action onConnectionFailed;
+    public event Action onCreatedRoom;
+
     public static MultiplayerSimulationManager Instance { get; private set; }
     
     // Create singelton
@@ -50,7 +54,7 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         DontDestroyOnLoad(gameObject);
     }
     
-    async void StartGame(GameMode mode)
+    async void StartGame(GameMode mode, string code)
     {
         
         // Create the Fusion runner and let it know that we will be providing user input
@@ -69,15 +73,15 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         await _hostRunner.StartGame(new StartGameArgs()
         {
             GameMode = mode,
-            SessionName = "TestRoom",
+            SessionName = code,
             SceneManager = gameObject.AddComponent<NetworkSceneManagerDefault>()
         });
         
     }
 
     // temporary testing functions
-    public void HostGame() => StartGame(GameMode.Host);
-    public void JoinGame() => StartGame(GameMode.Client);
+    public void HostGame(string code) => StartGame(GameMode.Host, code);
+    public void JoinGame(string code) => StartGame(GameMode.Client, code);
     
     void INetworkRunnerCallbacks.OnPlayerJoined(NetworkRunner runner, PlayerRef player)
     {
@@ -92,6 +96,8 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
                 
                 // RPC
                  SpawnMenuController();
+                 
+                 onCreatedRoom?.Invoke();
             }
 
             
@@ -204,13 +210,21 @@ public class MultiplayerSimulationManager : MonoBehaviourPlus, INetworkRunnerCal
         _globalGameSettings = null;
         playerInput.Clear();
     }
-    void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner) { }
+
+    void INetworkRunnerCallbacks.OnConnectedToServer(NetworkRunner runner)
+    {
+    }
 
     void INetworkRunnerCallbacks.OnDisconnectedFromServer(NetworkRunner runner, NetDisconnectReason reason)
     {
     }
     void INetworkRunnerCallbacks.OnConnectRequest(NetworkRunner runner, NetworkRunnerCallbackArgs.ConnectRequest request, byte[] token) { }
-    void INetworkRunnerCallbacks.OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress, NetConnectFailedReason reason) { }
+
+    void INetworkRunnerCallbacks.OnConnectFailed(NetworkRunner runner, NetAddress remoteAddress,
+        NetConnectFailedReason reason)
+    {
+        onConnectionFailed?.Invoke();
+    }
     void INetworkRunnerCallbacks.OnUserSimulationMessage(NetworkRunner runner, SimulationMessagePtr message) { }
     void INetworkRunnerCallbacks.OnSessionListUpdated(NetworkRunner runner, List<SessionInfo> sessionList) { }
     void INetworkRunnerCallbacks.OnCustomAuthenticationResponse(NetworkRunner runner, Dictionary<string, object> data) { }
